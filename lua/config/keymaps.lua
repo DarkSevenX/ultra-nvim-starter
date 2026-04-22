@@ -34,6 +34,7 @@ map.set("n", "<leader>cd", vim.diagnostic.open_float, { desc = "Diagnóstico (fl
 
 -- ToggleTerm (también definido en toggleterm.nvim)
 map.set("n", "<leader>ñ", ":ToggleTerm 1<CR>", { silent = true, desc = "Terminal flotante" })
+map.set("n", "<leader>;", ":ToggleTerm 1<CR>", { silent = true, desc = "Terminal flotante" })
 map.set("n", "<leader>2", ":ToggleTerm 2 <CR>", { silent = true, desc = "Terminal 2" })
 
 -- Kulala (sustituye rest.nvim / comando :Rest)
