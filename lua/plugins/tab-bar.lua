@@ -18,6 +18,27 @@ local function nvim_tree_width()
   return 0
 end
 
+-- No mostrar NvimTree en la lista de ventanas del preset (evita "NvimTree_1" al final de la tabline).
+local function tabby_patch_ignore_nvim_tree_wins()
+  local lines_mod = require("tabby.feature.lines")
+  if lines_mod._ultra_skip_nvim_tree then
+    return
+  end
+  lines_mod._ultra_skip_nvim_tree = true
+  local orig_get_line = lines_mod.get_line
+  function lines_mod.get_line(opt)
+    local line = orig_get_line(opt)
+    local orig_wins_in_tab = line.wins_in_tab
+    line.wins_in_tab = function(tabid)
+      return orig_wins_in_tab(tabid).filter(function(win)
+        local bufid = vim.api.nvim_win_get_buf(win.id)
+        return vim.bo[bufid].filetype ~= "NvimTree"
+      end)
+    end
+    return line
+  end
+end
+
 local function tabby_patch_nvim_tree_pad()
   local tbl = require("tabby.tabline")
   local old_fn = tbl.cfg.fn
@@ -44,6 +65,8 @@ local function tabby_patch_nvim_tree_pad()
 end
 
 local function tabby_config()
+  tabby_patch_ignore_nvim_tree_wins()
+
   -- No pongas name_fallback = tostring(tabid): duplica el dígito junto a tab.number() (se ve "1 1 x 2 2 x").
   -- Por defecto tabby añade "[N+]" si hay varias ventanas en la pestaña; aquí solo el nombre del buffer activo.
   local option = {
@@ -56,11 +79,21 @@ local function tabby_config()
       name_fallback = function(tabid)
         local api = require("tabby.module.api")
         local win_name = require("tabby.feature.win_name")
+        local wins = api.get_tab_wins(tabid)
         local cur_win = api.get_tab_current_win(tabid)
-        if api.is_float_win(cur_win) then
+        local pick_win = cur_win
+        if vim.bo[vim.api.nvim_win_get_buf(cur_win)].filetype == "NvimTree" then
+          for _, w in ipairs(wins) do
+            if vim.bo[vim.api.nvim_win_get_buf(w)].filetype ~= "NvimTree" then
+              pick_win = w
+              break
+            end
+          end
+        end
+        if api.is_float_win(pick_win) then
           return "[Floating]"
         end
-        return win_name.get(cur_win)
+        return win_name.get(pick_win)
       end,
     },
   }
@@ -113,6 +146,9 @@ return {
         mode = "buffers",
         diagnostics = "nvim_lsp",
         always_show_bufferline = false,
+        custom_filter = function(bufnr)
+          return vim.bo[bufnr].filetype ~= "NvimTree"
+        end,
         offsets = {
           {
             filetype = "NvimTree",
